@@ -164,11 +164,19 @@ select {
   cursor: pointer;
 }
 
+.project-links {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+}
+
+
 .github-project-link {
-  position: fixed;
   left: 0;
   bottom: 0;
-
   margin-left: 16px;
   margin-bottom: 10px;
 }
@@ -266,10 +274,16 @@ select {
   text-align: right;
 }
 
-.score-board .score-board-table .avatar {
+.score-board .score-board-table .avatar img{
   display: inline-block;
-  height: 25px;
-  width: 25px;
+  height: 36px;
+  width: 36px;
+}
+
+.score-board .avatar img{
+  display: inline-block;
+  height: 48px;
+  width: 48px;
 }
 
 .score-board-toggle {
@@ -461,12 +475,22 @@ select {
 
 .table {
   position: absolute;
-  left: 50%;
-  top: 45%;
-
-  transform: translate(-50%, -50%);
   text-align: center;
-  width: 600px; /* (width(.card) + margin-x(.card)) * 5 */
+
+  @media screen and (max-width: 600px) {
+    top: 45%;
+    right: 0;
+    left: 0;
+    transform: translate(0, -50%);
+  }
+
+  @media screen and (min-width:600px){
+    width: 600px;
+    top: 45%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
 }
 
 .pot {
@@ -818,7 +842,7 @@ select {
   color: red;
 }
 
-.message-bar .message .avatar {
+.message-bar .message .avatar img{
   display: inline-block;
   height: 25px;
   width: 25px;

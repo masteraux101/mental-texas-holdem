@@ -14,19 +14,20 @@ export default function PlayerAvatar(props: DataTestIdAttributes & {
 
   if ('playerName' in props) {
     return <div className="player-avatar" title={props.title ?? props.playerName} data-testid={props['data-testid']}>
-      <Avatar highlight={props.highlight} />
+      <Avatar highlight={props.highlight} playerId={props.playerId} />
       <div className="avatar-label">{props.playerName}</div>
     </div>;
   }
   if ('children' in props) {
     return <div className="player-avatar" title={props.title} data-testid={props['data-testid']}>
-      <Avatar highlight={props.highlight}/>
+      <Avatar highlight={props.highlight} playerId={props.playerId} />
       <div className="avatar-label">{props.children}</div>
     </div>;
   }
   return <Avatar
     title={props.title}
     highlight={props.highlight}
+    playerId={props.playerId}
     data-testid={props['data-testid']}
   />;
 }
