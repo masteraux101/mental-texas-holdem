@@ -25,8 +25,8 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
+    "start": "REACT_APP_LOCAL_IP=$(node scripts/get-local-ip.js) react-scripts start",
+    "build": "REACT_APP_LOCAL_IP=$(node scripts/get-local-ip.js) react-scripts build",
     "test": "react-scripts test",
     "e2e": "npx playwright test",
     "eject": "react-scripts eject",

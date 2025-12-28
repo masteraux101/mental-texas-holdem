@@ -1,4 +1,4 @@
-import React, {ImgHTMLAttributes, useMemo, useState} from 'react';
+import React, {ImgHTMLAttributes} from 'react';
 
 type AvatarProperties =
   Pick<ImgHTMLAttributes<HTMLImageElement>,
@@ -15,16 +15,11 @@ export default function Avatar(props: AvatarProperties) {
     ...otherAttributes
   } = props;
 
-  const [error, setError] = useState<boolean>(false);
-
-  const actualSrc = useMemo(() => {
-    return error ? PLACEHOLDER_SRC : src;
-  }, [error, src]);
 
   return (
     <div className={props.highlight ? 'avatar highlight' : 'avatar'}>
-      <img style={{width: '48px', height: '48px'}} 
-      alt={props.alt ?? "Avatar"} src={actualSrc} {...otherAttributes} onError={() => setError(true)}/>
+      <img 
+      alt={props.alt ?? "Avatar"} src={PLACEHOLDER_SRC} {...otherAttributes} />
     </div>
   );
 }

@@ -6,9 +6,18 @@ import {useTimeout} from "../lib/utils";
 export default function Invitation(props: DataTestIdAttributes & {
   hostPlayerId: string;
 }) {
-  const roomLink = HostId
-    ? window.location.href
-    : `${window.location.href}?gameRoomId=${props.hostPlayerId}`;
+  const getBaseUrl = () => {
+    if (HostId) {
+      return window.location.href;
+    }
+    // 当HostId为空或undefined时，使用本地IP地址
+    const localIP = process.env.REACT_APP_LOCAL_IP || window.location.hostname;
+    const protocol = window.location.protocol;
+    const port = window.location.port ? `:${window.location.port}` : '';
+    return `${protocol}//${localIP}${port}${window.location.pathname}`;
+  };
+
+  const roomLink = `${getBaseUrl()}${HostId ? '' : `?gameRoomId=${props.hostPlayerId}`}`;
 
   const [copied, setCopied] = useState(false);
   useTimeout(useCallback(() => {
