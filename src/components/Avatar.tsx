@@ -23,7 +23,8 @@ export default function Avatar(props: AvatarProperties) {
 
   return (
     <div className={props.highlight ? 'avatar highlight' : 'avatar'}>
-      <img alt={props.alt ?? "Avatar"} src={actualSrc} {...otherAttributes} onError={() => setError(true)}/>
+      <img style={{width: '48px', height: '48px'}} 
+      alt={props.alt ?? "Avatar"} src={actualSrc} {...otherAttributes} onError={() => setError(true)}/>
     </div>
   );
 }

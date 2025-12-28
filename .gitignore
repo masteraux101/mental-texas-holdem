@@ -27,3 +27,7 @@ node_modules/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# https certs
+localhost+3.pem
+localhost+3-key.pem

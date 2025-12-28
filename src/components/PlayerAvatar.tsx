@@ -11,6 +11,7 @@ export default function PlayerAvatar(props: DataTestIdAttributes & {
 } | {
   children: React.ReactNode;
 } | {})) {
+
   if ('playerName' in props) {
     return <div className="player-avatar" title={props.title ?? props.playerName} data-testid={props['data-testid']}>
       <Avatar highlight={props.highlight} src={`https://api.multiavatar.com/${props.playerId}.svg`}/>

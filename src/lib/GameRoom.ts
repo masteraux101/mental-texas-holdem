@@ -493,7 +493,7 @@ export default class GameRoom<T> {
       })();
       const recipientPublicKey = await recipientRsaKeyDeferred.promise;
       const dataAsBuffer = new TextEncoder().encode(JSON.stringify(e));
-      const encrypted = await encrypt(dataAsBuffer, recipientPublicKey);
+      const encrypted = await encrypt(dataAsBuffer.buffer, recipientPublicKey);
       const encryptedHex = arrayBufferToHex(encrypted);
       const encryptedEvent: EncryptedPrivateGameEvent = {
         type: '_encrypted',
