@@ -6,7 +6,7 @@
    - enhancing robustness during RTC transfering
    - fixing some UI bugs
 
-**Upated Version Avaliable on [here](https://masteraux101.github.io/mental-texas-holdem/)**
+**Updated Version Avaliable Now on [here](https://masteraux101.github.io/mental-texas-holdem/)**
 
 # Mental Texas Hold'em
 
