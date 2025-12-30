@@ -10,11 +10,13 @@ export default function Invitation(props: DataTestIdAttributes & {
     if (HostId) {
       return window.location.href;
     }
-    // 当HostId为空或undefined时，使用本地IP地址
-    const localIP = process.env.REACT_APP_LOCAL_IP || window.location.hostname;
+    // 优先使用域名，如果当前访问是IP地址或localhost，则使用REACT_APP_LOCAL_IP
+    const currentHostname = window.location.hostname;
+    const looksLikeIP = /^\d+\.\d+\.\d+\.\d+$/.test(currentHostname) || currentHostname === 'localhost';
+    const hostname = looksLikeIP ? (process.env.REACT_APP_LOCAL_IP || currentHostname) : currentHostname;
     const protocol = window.location.protocol;
     const port = window.location.port ? `:${window.location.port}` : '';
-    return `${protocol}//${localIP}${port}${window.location.pathname}`;
+    return `${protocol}//${hostname}${port}${window.location.pathname}`;
   };
 
   const roomLink = `${getBaseUrl()}${HostId ? '' : `?gameRoomId=${props.hostPlayerId}`}`;
