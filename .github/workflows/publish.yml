@@ -30,10 +30,14 @@ jobs:
         run: npm run build
         env:
           PUBLIC_URL: /mental-texas-holdem
+      - name: Prepare artifact
+        run: |
+          mkdir -p artifact/mental-texas-holdem
+          cp -r build/* artifact/mental-texas-holdem/
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './build'
+          path: './artifact'
 
   deploy:
     name: deploy
