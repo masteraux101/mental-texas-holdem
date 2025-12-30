@@ -6,6 +6,8 @@
    - enhancing robustness during RTC transfering
    - fixing some UI bugs
 
+**Upated Version Avaliable on [here](https://masteraux101.github.io/mental-texas-holdem/)**
+
 # Mental Texas Hold'em
 
 Mental Texas Hold'em is a **Peer-to-Peer**, **serverless** Texas Hold'em game that runs purely in browsers using WebRTC.
