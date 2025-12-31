@@ -7,7 +7,7 @@ import ChatRoom, {ChatRoomEvent} from "./ChatRoom";
 
 const peer = new Peer(
   {
-    debug: 2
+    debug: 3
   } as PeerOptions
 );
 

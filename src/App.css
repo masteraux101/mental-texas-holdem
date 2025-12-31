@@ -411,6 +411,10 @@ select {
   /* min-width: 128px; */
 }
 
+.opponent .player-avatar{
+
+}
+
 .opponents .opponent.winner {
   border: 1px #fff solid;
   border-radius: 10px;
@@ -435,6 +439,14 @@ select {
   width: 48px;
   height: 48px;
 }
+
+.opponents .opponent .avatar.highlight {
+  width: 48px;
+  height: 48px;
+  transform: translate(30%, 0);
+}
+
+
 
 .opponents .opponent .avatar-label {
   font-size: 12px;
