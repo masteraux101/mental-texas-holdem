@@ -7,17 +7,34 @@ import ChatRoom, { ChatRoomEvent } from "./ChatRoom";
 
 const iceServers = [
   {
-    urls: "stun:stun.relay.metered.ca:80",
+    urls: "turn:standard.relay.metered.ca:80",
+    username: "dfcd5a84eb6d7eacf55bc4b8",
+    credential: "UQ2mJA9tL7aqEL+W",
   },
-  { 
-    urls: 'stun:stun.l.google.com:19302' 
+  {
+    urls: "turn:standard.relay.metered.ca:80?transport=tcp",
+    username: "dfcd5a84eb6d7eacf55bc4b8",
+    credential: "UQ2mJA9tL7aqEL+W",
+  },
+  {
+    urls: "turn:standard.relay.metered.ca:443",
+    username: "dfcd5a84eb6d7eacf55bc4b8",
+    credential: "UQ2mJA9tL7aqEL+W",
+  },
+  {
+    urls: "turns:standard.relay.metered.ca:443?transport=tcp",
+    username: "dfcd5a84eb6d7eacf55bc4b8",
+    credential: "UQ2mJA9tL7aqEL+W",
+  },
+  {
+    urls: 'stun:stun.l.google.com:19302'
   }
 ];
 
 const peer = new Peer(
   {
     debug: 3,
-    config:{
+    config: {
       iceServers: iceServers,
     }
   } as PeerOptions
