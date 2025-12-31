@@ -8,11 +8,9 @@
 
 **Updated Version Avaliable Now on [here](https://masteraux101.github.io/mental-texas-holdem/)**
 
-# Mental Texas Hold'em
+# Mental Texas Hold'em (Origin Repo)
 
 Mental Texas Hold'em is a **Peer-to-Peer**, **serverless** Texas Hold'em game that runs purely in browsers using WebRTC.
-
-Play a live demo [here](https://www.predatorray.me/mental-texas-holdem/).
 
 ## Highlights
 
@@ -78,10 +76,6 @@ Since these cryptographic operations are run in the browser using JavaScript,
 performance may be slower compared to native applications.
 Additionally, the ciphertext size increases exponentially with key size,
 potentially causing network latency during deck shuffling if the key length is too large.
-
-## Support & Bug Report
-
-If you find any bugs or have suggestions, please feel free to [open an issue](https://github.com/predatorray/mental-texas-holdem/issues/new).
 
 ## License
 

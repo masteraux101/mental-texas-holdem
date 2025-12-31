@@ -124,6 +124,8 @@ export class TexasHoldemGameRoom {
   private dataByRounds: Map<number, TexasHoldemRound> = new Map();
 
   private funds: Map<string, number> = new Map();
+  private previousMembers: Set<string> = new Set();
+  private disconnectedPlayers: Set<string> = new Set();
 
   constructor(
     gameRoom: GameRoomLike<TexasHoldemTableEvent | any>,
@@ -134,8 +136,34 @@ export class TexasHoldemGameRoom {
 
     this.propagate('connected');
     this.propagate('status');
-    this.propagate('members');
     this.propagate('shuffled');
+
+    // Handle members change - detect when players disconnect
+    this.mentalPokerGameRoom.listener.on('members', this.lcm.register((members: string[]) => {
+      const currentMembers = new Set(members);
+      
+      // Find players who disconnected
+      this.previousMembers.forEach(player => {
+        if (!currentMembers.has(player)) {
+          this.disconnectedPlayers.add(player);
+          // Auto-fold the disconnected player in current round if game is in progress
+          if (this.round > 0) {
+            const roundData = this.dataByRounds.get(this.round);
+            if (roundData && !roundData.result && !roundData.foldPlayers.has(player)) {
+              roundData.foldPlayers.add(player);
+              this.emitter.emit('fold', this.round, player);
+              // Continue game flow
+              this.continueUnlessAllSet(this.round, roundData, player).catch(err => {
+                console.error(`Error continuing game after player ${player} disconnected:`, err);
+              });
+            }
+          }
+        }
+      });
+      
+      this.previousMembers = currentMembers;
+      this.emitter.emit('members', members);
+    }, listener => this.mentalPokerGameRoom.listener.off('members', listener)));
 
     // mental poker event listeners
     mentalPokerGameRoom.listener.on('card', this.lcm.register(async (round, offset, card) => {
@@ -160,7 +188,11 @@ export class TexasHoldemGameRoom {
   }
 
   async startNewRound(settings: TexasHoldemRoundSettings) {
-    const players: string[] = this.mentalPokerGameRoom.members;
+    let players: string[] = this.mentalPokerGameRoom.members;
+    
+    // Remove disconnected players from the game
+    players = players.filter(p => !this.disconnectedPlayers.has(p));
+    
     if (players.length < 2) {
       throw new Error('There should be at least 2 players to start a new round.');
     }
@@ -514,6 +546,24 @@ export class TexasHoldemGameRoom {
         !roundData.foldPlayers.has(player));
 
     if (!whoseTurnNext) {
+      const playersLeft = players.filter(p => !roundData.foldPlayers.has(p));
+      
+      // If only one player left (others folded), that player wins immediately
+      if (playersLeft.length === 1) {
+        const winner = playersLeft[0];
+        const result: LastOneWins = {
+          how: 'LastOneWins',
+          round,
+          winner,
+        };
+        roundData.result = result;
+        this.emitter.emit('winner', result);
+        const totalPotAmount = Array.from(roundData.pot.values()).reduce((m1, m2) => m1 + m2, 0);
+        const newFundOfWinner = (this.funds.get(winner) ?? 0) + totalPotAmount;
+        this.updateFundOfPlayer(winner, newFundOfWinner);
+        return;
+      }
+
       const everyOneElseIsAllinOrFolds = (players.length - roundData.allInPlayers.size - roundData.foldPlayers.size) <= 1;
       roundData.calledPlayers.clear();
       this.emitter.emit('allSet', round);
