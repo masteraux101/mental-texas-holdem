@@ -3,12 +3,12 @@ import GameRoom from "./GameRoom";
 import Peer, { PeerOptions } from "peerjs";
 import {TexasHoldemGameRoom, TexasHoldemTableEvent} from "./texas-holdem/TexasHoldemGameRoom";
 import ChatRoom, {ChatRoomEvent} from "./ChatRoom";
-import { debug } from "console";
+
 
 const peer = new Peer(
   {
-    debug: 3
-  }
+    debug: 2
+  } as PeerOptions
 );
 
 const gameRoom = new GameRoom<MentalPokerEvent | ChatRoomEvent | TexasHoldemTableEvent>(
