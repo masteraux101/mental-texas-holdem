@@ -2,6 +2,7 @@ import DataTestIdAttributes from "../lib/types";
 import {HostId} from "../lib/setup";
 import React, {useCallback, useRef, useState} from "react";
 import {useTimeout} from "../lib/utils";
+import QRCodeModal from "./QRCodeModal";
 
 export default function Invitation(props: DataTestIdAttributes & {
   hostPlayerId: string;
@@ -22,6 +23,8 @@ export default function Invitation(props: DataTestIdAttributes & {
   const roomLink = `${getBaseUrl()}${HostId ? '' : `?gameRoomId=${props.hostPlayerId}`}`;
 
   const [copied, setCopied] = useState(false);
+  const [showQRCode, setShowQRCode] = useState(false);
+  
   useTimeout(useCallback(() => {
     if (copied) {
       setCopied(false);
@@ -31,20 +34,35 @@ export default function Invitation(props: DataTestIdAttributes & {
   const roomLinkInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="invitation input-group" data-testid={props['data-testid'] ?? 'invitation'}>
-      <label>Invite others by sharing this link: </label>
-      <input
-        ref={roomLinkInputRef}
-        type="text"
-        readOnly={true}
-        value={roomLink}
-        data-testid="room-link"
-        onFocus={(e) => e.target.setSelectionRange(0, e.target.value.length)}
+    <>
+      <div className="invitation input-group" data-testid={props['data-testid'] ?? 'invitation'}>
+        <label>Invite others by sharing this link: </label>
+        <input
+          ref={roomLinkInputRef}
+          type="text"
+          readOnly={true}
+          value={roomLink}
+          data-testid="room-link"
+          onFocus={(e) => e.target.setSelectionRange(0, e.target.value.length)}
+        />
+        <button className="copy-link-button" data-testid="copy-link-button" onClick={() => {
+          roomLinkInputRef.current?.focus();
+          navigator.clipboard.writeText(roomLink).then(() => setCopied(true));
+        }}>{copied ? <b>Copied!</b> : 'Copy'}</button>
+        <button 
+          className="qrcode-link-button" 
+          data-testid="qrcode-link-button"
+          onClick={() => setShowQRCode(true)}
+          title="Show QR Code"
+        >
+          QR
+        </button>
+      </div>
+      <QRCodeModal 
+        link={roomLink}
+        isOpen={showQRCode}
+        onClose={() => setShowQRCode(false)}
       />
-      <button className="copy-link-button" data-testid="copy-link-button" onClick={() => {
-        roomLinkInputRef.current?.focus();
-        navigator.clipboard.writeText(roomLink).then(() => setCopied(true));
-      }}>{copied ? <b>Copied!</b> : 'Copy'}</button>
-    </div>
+    </>
   );
 }
