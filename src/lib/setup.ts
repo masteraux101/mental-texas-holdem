@@ -1,9 +1,16 @@
-import MentalPokerGameRoom, {MentalPokerEvent} from "./MentalPokerGameRoom";
+import MentalPokerGameRoom, { MentalPokerEvent } from "./MentalPokerGameRoom";
 import GameRoom from "./GameRoom";
 import Peer, { PeerOptions } from "peerjs";
-import {TexasHoldemGameRoom, TexasHoldemTableEvent} from "./texas-holdem/TexasHoldemGameRoom";
-import ChatRoom, {ChatRoomEvent} from "./ChatRoom";
+import { TexasHoldemGameRoom, TexasHoldemTableEvent } from "./texas-holdem/TexasHoldemGameRoom";
+import ChatRoom, { ChatRoomEvent } from "./ChatRoom";
 
+
+const iceServers = [
+  {
+    urls: "stun:stun.relay.metered.ca:80",
+  }
+
+];
 
 const peer = new Peer(
   {
@@ -13,8 +20,8 @@ const peer = new Peer(
 
 const gameRoom = new GameRoom<MentalPokerEvent | ChatRoomEvent | TexasHoldemTableEvent>(
   peer, {
-    hostId: new URLSearchParams(window.location.search).get('gameRoomId') ?? undefined,
-  }
+  hostId: new URLSearchParams(window.location.search).get('gameRoomId') ?? undefined,
+}
 );
 
 export const HostId = gameRoom.hostId;
