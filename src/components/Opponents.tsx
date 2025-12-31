@@ -61,10 +61,11 @@ export default function Opponents(props: {
                   >
                     <PlayerAvatar playerId={opponent} playerName={names.get(opponent)} highlight={whoseTurn === opponent}/>
                     {players && <div className="bankroll">${bankrolls.get(opponent) ?? 0}</div>}
-                    {board && <HandCards hole={holesPerPlayer?.get(opponent)}/>}
-                    {
-                      actionsDone && <BetAmount playerId={opponent} actionsDone={actionsDone}/>
-                    }
+
+                    <div className="bet-amount-container">
+                      {board && <HandCards hole={holesPerPlayer?.get(opponent)}/>}
+                      {actionsDone && <BetAmount playerId={opponent} actionsDone={actionsDone}/>}
+                    </div>
                   </div>
                 ));
             })()}

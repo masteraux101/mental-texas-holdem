@@ -52,7 +52,7 @@ export default function MySeat(props: {
 
   return (
     <div className={iAmWinner ? 'my-seat winner' : 'my-seat'}>
-      <MyBetAmount playerId={playerId} actionsDone={actionsDone}/>
+      
       <MyActionButtons
         playerId={playerId}
         players={players}
@@ -65,9 +65,16 @@ export default function MySeat(props: {
         fireBet={actions.fireBet}
         fireFold={actions.fireFold}
       />
+
       <MyPlayerAvatar playerId={playerId} names={names} setMyName={setMyName}/>
+   
       <MyBankroll playerId={playerId} players={players} bankrolls={bankrolls}/>
-      <MyHandCards hole={hole}/>
+
+      <div className="bet-amount-container">
+        <MyHandCards hole={hole}/>
+        <MyBetAmount playerId={playerId} actionsDone={actionsDone}/>  
+      </div>
+
     </div>
   );
 }

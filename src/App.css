@@ -193,7 +193,7 @@ select {
 
 .score-board {
   background-color: white;
-  min-width: 500px;
+  /* min-width: 500px; */
   padding: 20px 33px 10px 33px;
   border-radius: 20px;
 }
@@ -407,8 +407,8 @@ select {
   display: inline-block;
   margin-left: 10px;
   margin-right: 10px;
-  perspective: 128px;
-  min-width: 128px;
+  /* width: 300px; */
+  /* min-width: 128px; */
 }
 
 .opponents .opponent.winner {
@@ -471,6 +471,12 @@ select {
 
 .opponents .opponent:last-child:not(:first-child) .card {
   transform: rotate3d(-100, -100, 0, 5deg);
+}
+
+.bet-amount-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .table {
@@ -740,7 +746,7 @@ select {
   height: 450px;
 
   @media screen and (max-width: 500px) {
-    min-width: 150px
+    width: 150px
   }
 
   @media screen and (min-width: 500px) {
