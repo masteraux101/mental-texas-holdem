@@ -1,4 +1,4 @@
-# Update Log
+# Update Log（DO NOT USE FOR GAMBLING）
 - This project is forked from predatorray/mental-texas-holdem
 - This project is trying to achieve:
    - adapting for mobile device

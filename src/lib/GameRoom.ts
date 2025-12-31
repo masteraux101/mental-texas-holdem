@@ -22,6 +22,7 @@ export interface PublicGameEvent<T> {
   type: 'public';
   sender: string;
   data: T;
+  messageId?: string; // Optional message ID for confirmation
 }
 
 export interface PrivateGameEvent<T> {
@@ -29,6 +30,7 @@ export interface PrivateGameEvent<T> {
   sender: string;
   recipient: string;
   data: T;
+  messageId?: string; // Optional message ID for confirmation
 }
 
 export type GameEvent<T> = PublicGameEvent<T> | PrivateGameEvent<T>;
@@ -56,11 +58,18 @@ export interface ReplayEvent<T> {
   events: Array<[PublicGameEvent<T>, string]>;
 }
 
+export interface AcknowledgmentEvent {
+  type: '_ack';
+  messageId: string;
+  sender: string;
+}
+
 export type InternalEvent<T> =
   | MembersChangedEvent
   | PublicKeyEvent
   | EncryptedPrivateGameEvent
   | ReplayEvent<T>
+  | AcknowledgmentEvent
 ;
 
 export interface GameRoomEvents<T> {
@@ -136,7 +145,14 @@ export default class GameRoom<T> {
   public peerId?: string;
   private peerIdDeferred = new Deferred<string>();
 
-  public readonly hostId?: string;
+  // Message confirmation tracking
+  private pendingAcknowledgments: Map<string, {
+    deferred: Deferred<void>;
+    timeout: NodeJS.Timeout;
+    retryCount: number;
+    settled: boolean;
+  }> = new Map();
+  private messageIdCounter: number = 0;  public readonly hostId?: string;
 
   private publicEvents: Array<[PublicGameEvent<T>, string]> = [];
 
@@ -292,6 +308,82 @@ export default class GameRoom<T> {
     }
   }
 
+  /**
+   * Emit an event with confirmation and retry mechanism
+   * @param e The event to emit
+   * @param timeoutMs Timeout in milliseconds to wait for confirmation (default: 5000ms)
+   * @param maxRetries Maximum number of retries (default: 3)
+   * @throws Error if all retries fail
+   */
+  async emitEventWithConfirmation(
+    e: GameEvent<T>,
+    timeoutMs: number = 5000,
+    maxRetries: number = 3
+  ) {
+    const messageId = `msg_${this.messageIdCounter++}_${Date.now()}`;
+    e.messageId = messageId;
+    
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const deferred = new Deferred<void>();
+        let isSettled = false;
+        
+        const timeout = setTimeout(() => {
+          if (!isSettled) {
+            isSettled = true;
+            deferred.reject(new Error(`Message ${messageId} confirmation timeout after ${timeoutMs}ms`));
+          }
+        }, timeoutMs);
+        
+        this.pendingAcknowledgments.set(messageId, {
+          deferred,
+          timeout,
+          retryCount: attempt,
+          settled: false,
+        });
+        
+        // Send the event
+        if (this.hostId) {
+          await this.fireEventFromGuest(e);
+        } else {
+          await this.fireEventFromHost(e);
+        }
+        
+        // Wait for acknowledgment
+        try {
+          await deferred.promise;
+          if (!isSettled) {
+            isSettled = true;
+          }
+          console.info(`Event ${messageId} confirmed on attempt ${attempt + 1}`);
+          return;
+        } catch (waitError) {
+          if (!isSettled) {
+            isSettled = true;
+          }
+          throw waitError;
+        }
+      } catch (error) {
+        lastError = error as Error;
+        const pending = this.pendingAcknowledgments.get(messageId);
+        if (pending) {
+          clearTimeout(pending.timeout);
+          this.pendingAcknowledgments.delete(messageId);
+        }
+        
+        if (attempt < maxRetries - 1) {
+          console.warn(`Event ${messageId} confirmation failed (attempt ${attempt + 1}/${maxRetries}): ${lastError.message}, retrying...`);
+          // Wait before retry with exponential backoff
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
+        }
+      }
+    }
+    
+    throw new Error(`Failed to emit event ${messageId} after ${maxRetries} attempts: ${lastError?.message}`);
+  }
+
   onEvent(handler: (e: GameEvent<T>, fromWhom: string) => void) {
     this.emitter.on('event', handler);
   }
@@ -350,6 +442,22 @@ export default class GameRoom<T> {
     await hostConnection.send(data);
   }
 
+  private async sendAcknowledgment(messageId: string, recipientPeerId: string) {
+    const ackEvent: AcknowledgmentEvent = {
+      type: '_ack',
+      messageId,
+      sender: this.peerId!,
+    };
+    
+    if (this.hostId) {
+      // Guest sends ack to host
+      await this.sendMessageToHost(ackEvent);
+    } else {
+      // Host sends ack to specific guest
+      await this.sendMessageToSingleGuest(recipientPeerId, ackEvent);
+    }
+  }
+
   private handleData(data: unknown, whom: string) {
     const e = data as (GameEvent<T> | InternalEvent<T>);
     if (!e || !e.type) {
@@ -358,6 +466,21 @@ export default class GameRoom<T> {
     }
     console.info(`Received GameEvent ${e.type} from ${whom}.`);
     console.debug(e);
+    
+    // Handle acknowledgment events
+    if (e.type === '_ack') {
+      const ackEvent = e as AcknowledgmentEvent;
+      const pending = this.pendingAcknowledgments.get(ackEvent.messageId);
+      if (pending && !pending.settled) {
+        clearTimeout(pending.timeout);
+        pending.settled = true;
+        pending.deferred.resolve();
+        this.pendingAcknowledgments.delete(ackEvent.messageId);
+        console.debug(`Message ${ackEvent.messageId} acknowledged by ${whom}`);
+      }
+      return;
+    }
+    
     if (this.hostId) {
       // guest mode
       switch (e.type) {
@@ -365,9 +488,19 @@ export default class GameRoom<T> {
           if (e.recipient === this.peerId) {
             this.emitter.emit('event', e, e.sender);
           }
+          if (e.messageId) {
+            this.sendAcknowledgment(e.messageId, whom).catch(err => 
+              console.warn(`Failed to send acknowledgment for message ${e.messageId}:`, err)
+            );
+          }
           break;
         case 'public':
           this.emitter.emit('event', e, e.sender);
+          if (e.messageId) {
+            this.sendAcknowledgment(e.messageId, whom).catch(err => 
+              console.warn(`Failed to send acknowledgment for message ${e.messageId}:`, err)
+            );
+          }
           break;
         case '_members':
           this.membersSyncedFromHost = e.data;
@@ -423,10 +556,20 @@ export default class GameRoom<T> {
           } else {
             this.emitter.emit('event', e, whom);
           }
+          if (e.messageId) {
+            this.sendAcknowledgment(e.messageId, whom).catch(err => 
+              console.warn(`Failed to send acknowledgment for message ${e.messageId}:`, err)
+            );
+          }
           break;
         case 'public':
           this.sendMessageToAllGuests!(e, whom);
           this.emitter.emit('event', e, whom);
+          if (e.messageId) {
+            this.sendAcknowledgment(e.messageId, whom).catch(err => 
+              console.warn(`Failed to send acknowledgment for message ${e.messageId}:`, err)
+            );
+          }
           break;
         case '_publicKey':
           this.sendMessageToAllGuests!(e, whom);

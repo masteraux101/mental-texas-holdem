@@ -28,6 +28,15 @@ class MockGameRoom implements GameRoomLike<ChatRoomEvent> {
     }
   }
 
+  async emitEventWithConfirmation(
+    e: GameEvent<ChatRoomEvent>,
+    timeoutMs?: number,
+    maxRetries?: number
+  ): Promise<void> {
+    // In mock, just call emitEvent since we don't simulate network failures
+    return this.emitEvent(e);
+  }
+
   pair(another: MockGameRoom) {
     this.paired = another;
     another.paired = this;

@@ -36,6 +36,15 @@ class MockGameRoom implements GameRoomLike<TexasHoldemTableEvent> {
     }
   }
 
+  async emitEventWithConfirmation(
+    e: GameEvent<TexasHoldemTableEvent>,
+    timeoutMs?: number,
+    maxRetries?: number
+  ): Promise<void> {
+    // In mock, just call emitEvent since we don't simulate network failures
+    return this.emitEvent(e);
+  }
+
   get lastEventEmitted() {
     return this.eventsEmitted[this.eventsEmitted.length - 1];
   }

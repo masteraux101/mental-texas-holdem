@@ -54,6 +54,7 @@ export interface GameRoomLike<T> {
   peerIdAsync: Promise<string>;
   listener: EventListener<GameRoomEvents<GameEvent<T>>>;
   emitEvent: (e: GameEvent<T>) => Promise<void>;
+  emitEventWithConfirmation: (e: GameEvent<T>, timeoutMs?: number, maxRetries?: number) => Promise<void>;
 }
 
 export interface MentalPokerGameRoomLike {
@@ -224,7 +225,11 @@ export class TexasHoldemGameRoom {
   }
 
   async bet(round: number, amount: number) {
-    await this.gameRoom.emitEvent({
+    return this.betWithConfirmation(round, amount);
+  }
+
+  private async betWithConfirmation(round: number, amount: number, timeoutMs: number = 5000, maxRetries: number = 3) {
+    await this.gameRoom.emitEventWithConfirmation({
       type: 'public',
       sender: await this.gameRoom.peerIdAsync,
       data: {
@@ -232,18 +237,22 @@ export class TexasHoldemGameRoom {
         round,
         amount,
       },
-    });
+    }, timeoutMs, maxRetries);
   }
 
   async fold(round: number) {
-    await this.gameRoom.emitEvent({
+    return this.foldWithConfirmation(round);
+  }
+
+  private async foldWithConfirmation(round: number, timeoutMs: number = 5000, maxRetries: number = 3) {
+    await this.gameRoom.emitEventWithConfirmation({
       type: 'public',
       sender: await this.gameRoom.peerIdAsync,
       data: {
         type: 'action/fold',
         round,
       },
-    });
+    }, timeoutMs, maxRetries);
   }
 
   get listener(): EventListener<TexasHoldemGameRoomEvents> {
