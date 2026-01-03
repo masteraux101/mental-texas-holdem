@@ -33,7 +33,7 @@ const iceServers = [
 
 const peer = new Peer(
   {
-    debug: 3,
+    debug: 0,
     config: {
       iceServers: iceServers,
     }

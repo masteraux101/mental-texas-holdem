@@ -31,3 +31,4 @@ declare module 'phe' {
 
   export function handRank(strength: number): HandValue;
 }
+declare module '*.css';
