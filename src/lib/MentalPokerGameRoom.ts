@@ -201,7 +201,6 @@ export default class MentalPokerGameRoom {
         const decryptedByAlice = alice.decrypt(deck.cards[offset]);
         const doubleDecrypted = bob.decrypt(decryptedByAlice);
         const card = decodeStandardCard(Number(doubleDecrypted));
-        console.log(`The card [${offset}] has been decrypted: ${card.suit} ${card.rank}`);
         this.emitter.emit('card', round, offset, card);
       });
     });
@@ -216,12 +215,10 @@ export default class MentalPokerGameRoom {
   async showCard(round: number, cardOffset: number) {
     const roundData = this.dataByRounds.get(round);
     if (!roundData) {
-      console.warn(`There is no round ${round}.`);
       return;
     }
 
     const showCardIfAliceOrBob = async (player: Player, aliceOrBob: 'alice' | 'bob') => {
-      console.info(`[${aliceOrBob}] showing the card [ ${cardOffset} ] to all the players.`);
       const dk = player.getIndividualKey(cardOffset).decryptionKey;
       await this.firePublicEvent({
         type: 'card/decrypt',
@@ -248,12 +245,10 @@ export default class MentalPokerGameRoom {
   async dealCard(round: number, cardOffset: number, recipient: string) {
     const roundData = this.dataByRounds.get(round);
     if (!roundData) {
-      console.warn(`There is no round ${round}.`);
       return;
     }
 
     const dealCardIfAliceOrBob = async (player: Player, aliceOrBob: 'alice' | 'bob') => {
-      console.info(`Dealing the card [ ${cardOffset} ] to ${recipient}.`);
       const dk = player.getIndividualKey(cardOffset).decryptionKey;
       await this.firePrivateEvent({
         type: 'card/decrypt',
@@ -300,7 +295,6 @@ export default class MentalPokerGameRoom {
 
     const myPeerId = await this.gameRoom.peerIdAsync;
     if (settings.alice === myPeerId) {
-      console.debug('Creating Alice');
       const alicePromise = createPlayer({
         cards: CARDS,
         bits: settings.bits ?? 32,
@@ -308,8 +302,6 @@ export default class MentalPokerGameRoom {
       roundData.alice.resolve(alicePromise);
 
       const alice = await alicePromise;
-
-      console.debug('Encrypting and shuffling the deck by Alice.');
 
       const standard52Deck = getStandard52Deck();
       const deckEncoded = new EncodedDeck(
@@ -343,7 +335,6 @@ export default class MentalPokerGameRoom {
       const sharedPublicKey = new PublicKey(BigInt(e.publicKey.p), BigInt(e.publicKey.q));
       roundData.sharedPublicKey.resolve(sharedPublicKey);
 
-      console.debug('Creating Bob');
       const bobPromise = createPlayer({
         cards: CARDS,
         publicKey: sharedPublicKey,
@@ -354,7 +345,6 @@ export default class MentalPokerGameRoom {
 
       const bob = await bobPromise;
 
-      console.debug('Double-encrypting and shuffling the deck by Bob.');
       const encryptedWithKeyAKeyB = bob.encryptAndShuffle(toBigIntEncodedDeck(e.deck));
 
       await this.firePublicEvent({
@@ -370,7 +360,6 @@ export default class MentalPokerGameRoom {
     const alice = await roundData.alice.promise;
 
     if (alice) {
-      console.debug('Decrypting and encrypting individually by Alice.');
       const encryptedWithIndividualKeyAKeyB = alice.decryptAndEncryptIndividually(toBigIntEncodedDeck(e.deck));
       await this.firePublicEvent({
         type: 'deck/step3',
@@ -385,7 +374,6 @@ export default class MentalPokerGameRoom {
     const bob = await roundData.bob.promise;
 
     if (bob) {
-      console.debug('Decrypting and encrypting individually by Bob. (Deck shuffling is finalized)');
       const encryptedBothKeysIndividually = bob.decryptAndEncryptIndividually(toBigIntEncodedDeck(e.deck));
       await this.firePublicEvent({
         type: 'deck/finalized',

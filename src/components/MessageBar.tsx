@@ -72,7 +72,7 @@ function EventOrMessage(props: {
             ) : (
               <>
                 {
-                  em.result.showdown[0].players.map(p => <PlayerAvatar playerId={p}/>)
+                  em.result.showdown[0].players.map((p, idx) => <PlayerAvatar key={idx} playerId={p}/>)
                 }
                 :&nbsp;won ({rankDescription[em.result.showdown[0].handValue]}).
               </>

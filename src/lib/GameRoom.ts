@@ -180,7 +180,6 @@ export default class GameRoom<T> {
 
     this.hostConnectionPromise = new Promise<DataConnection | DataConnectionLike | null>((resolve, reject) => {
       peer.on('open', this.lcm.register(peerId => {
-        console.info(`Connected to the PeerJS server. (peerId = ${peerId}).`);
         this.peerId = peerId;
         this.peerIdDeferred.resolve(peerId);
         this._status = 'PeerServerConnected';
@@ -192,10 +191,8 @@ export default class GameRoom<T> {
           return;
         }
 
-        console.info(`Connecting to the remote peer (${options.hostId})`);
         const hostConn = peer.connect(options.hostId, PEER_CONNECT_OPTIONS);
         hostConn.on('open', () => {
-          console.info(`Connected to the remote peer (${options.hostId}) successfully.`);
           this._status = 'HostConnected';
           this.emitter.emit('status', this._status);
           resolve(hostConn);
@@ -207,7 +204,6 @@ export default class GameRoom<T> {
         });
         hostConn.on('close', () => {
           this._status = 'Closed';
-          console.info(`The remote connection is closed (${options.hostId}).`);
         });
         hostConn.on('data', (data) => {
           this.handleData(data, hostConn.peer);
@@ -220,7 +216,6 @@ export default class GameRoom<T> {
       peer.on('connection', this.lcm.register((conn) => {
         const openedConnPromise = new Promise<DataConnectionLike>((resolve, reject) => {
           conn.on('open', () => {
-            console.info(`Established connection with the peer (peerId = ${conn.peer}).`);
             resolve(conn);
           });
           conn.on('data', (data) => {
@@ -236,7 +231,6 @@ export default class GameRoom<T> {
         }
         this.guestConnectionPromises.set(conn.peer, openedConnPromise);
         conn.on('close', () => {
-          console.info(`The client connection is closed. (peerId = ${conn.peer}).`);
           this.guestConnectionPromises.delete(conn.peer);
 
           const membersChangedEvent: MembersChangedEvent = {
@@ -259,6 +253,11 @@ export default class GameRoom<T> {
           type: '_replay',
           events: [...this.publicEvents],
         };
+        console.log(`[回放事件发送] 发送给新玩家(${conn.peer}) | 事件数: ${replayEvent.events.length}`);
+        for (let i = 0; i < replayEvent.events.length; i++) {
+          const [event, sender] = replayEvent.events[i];
+          console.log(`  - 事件${i}: type=${event.type} | sender=${sender} | data=${JSON.stringify(event.data)}`);
+        }
         this.sendMessageToSingleGuest(conn.peer, replayEvent);
 
         this.emitter.emit('members', this.members);
@@ -357,7 +356,6 @@ export default class GameRoom<T> {
           if (!isSettled) {
             isSettled = true;
           }
-          console.info(`Event ${messageId} confirmed on attempt ${attempt + 1}`);
           return;
         } catch (waitError) {
           if (!isSettled) {
@@ -374,7 +372,6 @@ export default class GameRoom<T> {
         }
         
         if (attempt < maxRetries - 1) {
-          console.warn(`Event ${messageId} confirmation failed (attempt ${attempt + 1}/${maxRetries}): ${lastError.message}, retrying...`);
           // Wait before retry with exponential backoff
           await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
         }
@@ -403,12 +400,8 @@ export default class GameRoom<T> {
   private async sendMessageToSingleGuest(guestPeerId: string, data: any) {
     const guestConn = this.guestConnectionPromises.get(guestPeerId);
     if (!guestConn) {
-      console.warn(`The message is dropped because the connection (peerId = ${guestPeerId}) is not found.`);
-      console.debug(data);
       return;
     }
-    console.info(`Sending a message to the client (peerId = ${guestPeerId}).`);
-    console.debug(data);
     (await guestConn).send(data);
   }
 
@@ -416,17 +409,9 @@ export default class GameRoom<T> {
     if (this.guestConnectionPromises.size === 0) {
       return;
     }
-    if (exceptPeerId) {
-      console.debug(`Sending a message to all the ${this.guestConnectionPromises.size} clients except the peer (peerId = ${exceptPeerId}).`);
-    } else {
-      console.debug(`Sending a message to all the ${this.guestConnectionPromises.size} clients.`);
-    }
-    console.debug(data);
     for (const [peerId, guestConnectionPromise] of Array.from(this.guestConnectionPromises.entries())) {
       const guestConnection = await guestConnectionPromise;
       if (guestConnection!.peer !== exceptPeerId) {
-        console.debug(`Sending a message to the client (peerId = ${peerId}):`);
-        console.debug(data);
         await guestConnection!.send(data);
       }
     }
@@ -437,8 +422,6 @@ export default class GameRoom<T> {
     if (!hostConnection) {
       throw new Error('Host Connection is not available in non-Guest mode.');
     }
-    console.debug(`Sending a message to the host (peerId = ${this.hostId}).`)
-    console.debug(data);
     await hostConnection.send(data);
   }
 
@@ -461,11 +444,8 @@ export default class GameRoom<T> {
   private handleData(data: unknown, whom: string) {
     const e = data as (GameEvent<T> | InternalEvent<T>);
     if (!e || !e.type) {
-      console.error('missing event or type');
       return;
     }
-    console.info(`Received GameEvent ${e.type} from ${whom}.`);
-    console.debug(e);
     
     // Handle acknowledgment events
     if (e.type === '_ack') {
@@ -476,7 +456,6 @@ export default class GameRoom<T> {
         pending.settled = true;
         pending.deferred.resolve();
         this.pendingAcknowledgments.delete(ackEvent.messageId);
-        console.debug(`Message ${ackEvent.messageId} acknowledged by ${whom}`);
       }
       return;
     }
@@ -489,17 +468,14 @@ export default class GameRoom<T> {
             this.emitter.emit('event', e, e.sender);
           }
           if (e.messageId) {
-            this.sendAcknowledgment(e.messageId, whom).catch(err => 
-              console.warn(`Failed to send acknowledgment for message ${e.messageId}:`, err)
-            );
+            this.sendAcknowledgment(e.messageId, whom).catch(() => {});
           }
           break;
         case 'public':
+          console.log(`[接收公开事件] 类型: ${e.type} | 来自: ${e.sender}`);
           this.emitter.emit('event', e, e.sender);
           if (e.messageId) {
-            this.sendAcknowledgment(e.messageId, whom).catch(err => 
-              console.warn(`Failed to send acknowledgment for message ${e.messageId}:`, err)
-            );
+            this.sendAcknowledgment(e.messageId, whom).catch(() => {});
           }
           break;
         case '_members':
@@ -541,8 +517,23 @@ export default class GameRoom<T> {
           });
           break;
         case '_replay':
-          for (let [data, whom] of e.events) {
-            this.emitter.emit('event', data, whom, true);
+          console.log(`[接收回放事件] 收到${e.events.length}个历史事件`);
+          for (let i = 0; i < e.events.length; i++) {
+            const item = e.events[i];
+            let data: any, whom: string;
+            
+            if (Array.isArray(item) && item.length >= 2) {
+              [data, whom] = item;
+            } else {
+              console.log(`  - 警告: 事件${i}格式错误`);
+              continue;
+            }
+            
+            const dataStr = data && typeof data === 'object' ? JSON.stringify((data as any).data) : 'undefined';
+            console.log(`  - 重放: type=${data?.type} | sender=${whom} | data=${dataStr}`);
+            // Mark this as a replay event by adding isReplay flag
+            const replayEventData = { ...data, _isReplay: true };
+            this.emitter.emit('event', replayEventData, whom);
           }
           break;
       }
@@ -551,24 +542,20 @@ export default class GameRoom<T> {
       switch (e.type) {
         case 'private':
           if (e.recipient !== this.peerId) {
-            console.warn(`Received a private message in plaintext (sender = ${whom}, recipient = ${e.recipient}).`);
             this.sendMessageToSingleGuest!(e.recipient, e);
           } else {
             this.emitter.emit('event', e, whom);
           }
           if (e.messageId) {
-            this.sendAcknowledgment(e.messageId, whom).catch(err => 
-              console.warn(`Failed to send acknowledgment for message ${e.messageId}:`, err)
-            );
+            this.sendAcknowledgment(e.messageId, whom).catch(() => {});
           }
           break;
         case 'public':
+          console.log(`[接收公开事件] 类型: ${e.type} | 来自: ${whom}`);
           this.sendMessageToAllGuests!(e, whom);
           this.emitter.emit('event', e, whom);
           if (e.messageId) {
-            this.sendAcknowledgment(e.messageId, whom).catch(err => 
-              console.warn(`Failed to send acknowledgment for message ${e.messageId}:`, err)
-            );
+            this.sendAcknowledgment(e.messageId, whom).catch(() => {});
           }
           break;
         case '_publicKey':
@@ -616,8 +603,6 @@ export default class GameRoom<T> {
   }
 
   private async fireEventFromGuest(e: GameEvent<T>) {
-    console.info(`Sending GameEvent ${e.type}.`);
-    console.debug(e);
     if (e.type === 'public') {
       await this.sendMessageToHost(e);
     } else if (e.recipient !== this.peerId) {
@@ -650,8 +635,6 @@ export default class GameRoom<T> {
   }
 
   private async fireEventFromHost(e: GameEvent<T>) {
-    console.debug(`Sending GameEvent ${e.type}.`);
-    console.debug(e);
     switch (e.type) {
       case 'private':
         if (e.recipient !== this.peerId) {

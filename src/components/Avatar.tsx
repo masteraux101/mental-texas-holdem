@@ -15,6 +15,7 @@ export default function Avatar(props: AvatarProperties) {
     alt,
     src,
     playerId,
+    highlight,
     ...otherAttributes
   } = props;
 
@@ -22,9 +23,9 @@ export default function Avatar(props: AvatarProperties) {
   const avatarSrc = playerId ? getAvatarSrcByPlayerId(playerId) : PLACEHOLDER_SRC;
 
   return (
-    <div className={props.highlight ? 'avatar highlight' : 'avatar'}>
+    <div className={highlight ? 'avatar highlight' : 'avatar'}>
       <img 
-      alt={props.alt ?? "Avatar"} src={avatarSrc} {...otherAttributes} />
+      alt={alt ?? "Avatar"} src={avatarSrc} {...otherAttributes} />
     </div>
   );
 }

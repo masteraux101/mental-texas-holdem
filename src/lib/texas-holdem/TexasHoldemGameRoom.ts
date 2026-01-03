@@ -154,9 +154,7 @@ export class TexasHoldemGameRoom {
               roundData.foldPlayers.add(player);
               this.emitter.emit('fold', this.round, player);
               // Continue game flow
-              this.continueUnlessAllSet(this.round, roundData, player).catch(err => {
-                console.error(`Error continuing game after player ${player} disconnected:`, err);
-              });
+              this.continueUnlessAllSet(this.round, roundData, player).catch(() => {});
             }
           }
         }
@@ -173,16 +171,17 @@ export class TexasHoldemGameRoom {
     }, listener => mentalPokerGameRoom.listener.off('card', listener)));
 
     // texas holdem event listeners
-    this.gameRoom.listener.on('event', this.lcm.register(({ data }, who) => {
+    this.gameRoom.listener.on('event', this.lcm.register(async ({ data }, who) => {
+      const isReplay = (data as any)._isReplay === true;
       switch (data.type) {
         case 'newRound':
-          this.handleNewRoundEvent(data);
+          this.handleNewRoundEvent(data, isReplay);
           break;
         case 'action/bet':
-          this.handleBetEvent(data, who);
+          await this.handleBetEvent(data, who);
           break;
         case 'action/fold':
-          this.handleFoldEvent(data, who);
+          await this.handleFoldEvent(data, who);
           break;
       }
     }, listener => this.gameRoom.listener.off('event', listener)));
@@ -374,8 +373,10 @@ export class TexasHoldemGameRoom {
         });
 
         const awards = this.calculateAwards(roundData, result);
+        console.log(`[发放奖励] 回合: ${round} | 赢家总数: ${result.length}`);
         for (let [winner, award] of Array.from(awards.entries())) {
           const newFundOfWinner = (this.funds.get(winner) ?? 0) + award;
+          console.log(`[赢家奖励] 玩家: ${winner} | 奖励金额: ${award} | 新筹码: ${newFundOfWinner}`);
           this.updateFundOfPlayer(winner, newFundOfWinner);
         }
       });
@@ -385,6 +386,7 @@ export class TexasHoldemGameRoom {
   private calculateAwards(roundData: TexasHoldemRound, showdownResult: ShowdownResult['showdown']) {
     const pot = new Map(roundData.pot);
     const amountsToBeUpdated = new Map<string, number>();
+    console.log(`[底池分配开始] 回合: 未知 | 底池内容:`, Object.fromEntries(pot));
     for (let result of showdownResult) {
       const winners = result.players.sort((p1, p2) => (pot.get(p1) ?? 0) - (pot.get(p2) ?? 0));
       let amountUnallocated: number = 0;
@@ -405,13 +407,14 @@ export class TexasHoldemGameRoom {
 
         const wonPortion = Math.floor(amountUnallocated / (winners.length - winnerOffset));
         amountUnallocated -= wonPortion;
-        console.log(`Player ${winner} won ${wonPortion}.`);
         amountsToBeUpdated.set(winner, (amountsToBeUpdated.get(winner) ?? 0) + wonPortion);
+        console.log(`[奖励分配] 赢家: ${winner} | 赢取: ${wonPortion}`);
       }
     }
     // remaining
     for (let [p, remaining] of Array.from(pot.entries())) {
       amountsToBeUpdated.set(p, (amountsToBeUpdated.get(p) ?? 0) + remaining);
+      console.log(`[剩余底池] 玩家: ${p} | 分配: ${remaining}`);
     }
     // remove zero amount
     for (let [p, amount] of Array.from(amountsToBeUpdated)) {
@@ -419,10 +422,12 @@ export class TexasHoldemGameRoom {
         amountsToBeUpdated.delete(p);
       }
     }
+    console.log(`[底池分配完成] 最终分配:`, Object.fromEntries(amountsToBeUpdated));
     return amountsToBeUpdated;
   }
 
-  private async handleNewRoundEvent(e: NewRoundEvent) {
+  private async handleNewRoundEvent(e: NewRoundEvent, isReplay?: boolean) {
+    console.log(`[新回合开始] 回合: ${e.round} | 玩家: ${e.players.join(', ')} | 初始筹码: ${e.settings.initialFundAmount}`);
     for (let player of e.players) {
       const fund = this.funds.get(player);
       if (!fund || fund < 2) { // 1 BB (2 SB) at least
@@ -446,8 +451,30 @@ export class TexasHoldemGameRoom {
       await this.mentalPokerGameRoom.dealCard(e.round, holeOffsets[1], e.players[i]);
     }
 
-    await this.handleBet(e.round, 1, e.players[0], true); // sb bets 1
-    await this.handleBet(e.round, 2, e.players[1], true); // bb bets 2
+    // Skip SB/BB bets during replay, as they will be replayed from action/bet events
+    if (!isReplay) {
+      // Send SB bet as network event so it gets added to publicEvents
+      await this.gameRoom.emitEvent({
+        type: 'public',
+        sender: await this.gameRoom.peerIdAsync,
+        data: {
+          type: 'action/bet',
+          round: e.round,
+          amount: 1, // SB
+        },
+      });
+      
+      // Send BB bet as network event so it gets added to publicEvents
+      await this.gameRoom.emitEvent({
+        type: 'public',
+        sender: await this.gameRoom.peerIdAsync,
+        data: {
+          type: 'action/bet',
+          round: e.round,
+          amount: 2, // BB
+        },
+      });
+    }
 
     const playerNextToBb = e.players[2 % e.players.length];
     this.emitter.emit('whoseTurn', e.round, playerNextToBb, {callAmount: e.players.length === 2 ? 1 : 2});
@@ -459,19 +486,18 @@ export class TexasHoldemGameRoom {
 
   private async handleBet(roundNo: number, raisedAmount: number, who: string, isSbBbFirstBet?: boolean) {
     if (raisedAmount < 0) { // FIXME must be N * BB
-      console.warn(`Bet amount cannot be negative: ${raisedAmount}`);
       return;
     }
 
     const fund = this.funds.get(who) ?? 0;
+    console.log(`[handleBet检查] 玩家: ${who.substring(0,8)} | 需要投入: ${raisedAmount} | 当前资金: ${fund} | 回合: ${roundNo}`);
     if (fund < raisedAmount) {
-      console.warn(`Fund is insufficient: ${fund}`);
+      console.log(`  ❌ 资金不足，跳过此投注`);
       return;
     }
 
     const round = this.getOrCreateDataForRound(roundNo);
     if (round.result) {
-      console.warn(`Cannot bet since this round has ended.`);
       return;
     }
     const pot = round.pot;
@@ -479,8 +505,9 @@ export class TexasHoldemGameRoom {
     const leastTotalBetAmount = Array.from(pot.values()).reduce((a, b) => Math.max(a, b), 0);
     const totalBetAmount = currentBetAmount + raisedAmount;
     const allin = fund === raisedAmount;
+    console.log(`  当前底池: ${JSON.stringify(Object.fromEntries(pot))} | 最小投注额: ${leastTotalBetAmount} | 总投注: ${totalBetAmount}`);
     if (totalBetAmount < leastTotalBetAmount && !allin) { // if less but not all-in
-      console.warn(`Cannot bet ${raisedAmount} addition to ${currentBetAmount} because the least bet amount is ${leastTotalBetAmount}.`);
+      console.log(`  ❌ 投注不足，跳过 (${totalBetAmount} < ${leastTotalBetAmount})`);
       return;
     }
 
@@ -505,6 +532,11 @@ export class TexasHoldemGameRoom {
     this.emitter.emit('bet', roundNo, raisedAmount, who, allin);
     const potTotalAmount = Array.from(round.pot.values()).reduce((a, b) => a + b, 0);
     this.emitter.emit('pot', roundNo, potTotalAmount);
+    
+    // Log bet details
+    console.log(
+      `[下注] 回合: ${roundNo} | 玩家: ${who} | 下注: ${raisedAmount} | 总投入: ${totalBetAmount} | 剩余筹码: ${fund - raisedAmount} | ALL IN: ${allin} | 底池: ${potTotalAmount}`
+    );
 
     if (!isSbBbFirstBet) {
       await this.continueUnlessAllSet(roundNo, round, who);
@@ -518,6 +550,8 @@ export class TexasHoldemGameRoom {
     }
     round.foldPlayers.add(who);
     this.emitter.emit('fold', e.round, who);
+    
+    console.log(`[弃牌] 回合: ${e.round} | 玩家: ${who}`);
 
     const playersLeft = (await round.playersOrdered.promise).filter(p => !round.foldPlayers.has(p));
     if (playersLeft.length === 1) {
@@ -532,6 +566,7 @@ export class TexasHoldemGameRoom {
       this.emitter.emit('winner', result);
       const totalPotAmount = Array.from(round.pot.values()).reduce((m1, m2) => m1 + m2, 0);
       const newFundOfWinner = (this.funds.get(winner) ?? 0) + totalPotAmount;
+      console.log(`[最后赢家] 回合: ${e.round} | 赢家: ${winner} | 底池: ${totalPotAmount} | 新筹码: ${newFundOfWinner}`);
       this.updateFundOfPlayer(winner, newFundOfWinner);
     } else {
       await this.continueUnlessAllSet(e.round, round, who);
@@ -541,6 +576,17 @@ export class TexasHoldemGameRoom {
   private updateFundOfPlayer(whose: string, amount: number, borrowed?: boolean) {
     const previousAmount = this.funds.get(whose);
     this.funds.set(whose, amount);
+    
+    // Log detailed bankroll changes
+    const change = amount - (previousAmount ?? 0);
+    const changeSign = change >= 0 ? '+' : '';
+    const borrowedTag = borrowed ? '[BORROWED] ' : '';
+    const stackTrace = new Error().stack?.split('\n').slice(2, 4).join(' | ') || '';
+    
+    console.log(
+      `[筹码变更] 玩家: ${whose} | 变更: ${changeSign}${change} | 当前: ${amount} | 之前: ${previousAmount ?? 0} | 状态: ${borrowedTag}| 来源: ${stackTrace}`
+    );
+    
     this.emitter.emit('fund', amount, previousAmount, whose, borrowed);
   }
 
@@ -569,6 +615,7 @@ export class TexasHoldemGameRoom {
         this.emitter.emit('winner', result);
         const totalPotAmount = Array.from(roundData.pot.values()).reduce((m1, m2) => m1 + m2, 0);
         const newFundOfWinner = (this.funds.get(winner) ?? 0) + totalPotAmount;
+        console.log(`[最后赢家-弃牌] 回合: ${round} | 赢家: ${winner} | 底池: ${totalPotAmount} | 新筹码: ${newFundOfWinner}`);
         this.updateFundOfPlayer(winner, newFundOfWinner);
         return;
       }
