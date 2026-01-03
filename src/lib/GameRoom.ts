@@ -409,7 +409,7 @@ export default class GameRoom<T> {
     if (this.guestConnectionPromises.size === 0) {
       return;
     }
-    for (const [peerId, guestConnectionPromise] of Array.from(this.guestConnectionPromises.entries())) {
+    for (const [_, guestConnectionPromise] of Array.from(this.guestConnectionPromises.entries())) {
       const guestConnection = await guestConnectionPromise;
       if (guestConnection!.peer !== exceptPeerId) {
         await guestConnection!.send(data);
