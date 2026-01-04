@@ -8,11 +8,9 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: "pages"
+  group: "build"
   cancel-in-progress: true
 
 jobs:
@@ -30,25 +28,21 @@ jobs:
         run: npm run build
         env:
           PUBLIC_URL: /mental-texas-holdem
+      - name: Rename index.html to main.html
+        run: |
+          mv build/index.html build/main.html
       - name: Prepare artifact
         run: |
           mkdir -p artifact/mental-texas-holdem
           cp -r build/* artifact/mental-texas-holdem/
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Push to github pages repo
+        uses: cpina/github-action-push-to-another-repository@main
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
         with:
-          path: './artifact'
-
-  deploy:
-    name: deploy
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          source-directory: 'artifact'
+          destination-github-username: 'masteraux101'
+          destination-repository-name: 'masteraux101.github.io'
+          user-email: github-action@github.com
+          user-name: github-action
+          target-branch: main
