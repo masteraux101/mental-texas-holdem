@@ -38,7 +38,7 @@ jobs:
       - name: Push to github pages repo
         uses: cpina/github-action-push-to-another-repository@main
         env:
-          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+          API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
         with:
           source-directory: 'artifact'
           destination-github-username: 'masteraux101'
@@ -46,3 +46,4 @@ jobs:
           user-email: github-action@github.com
           user-name: github-action
           target-branch: main
+          target-directory: 'mental-texas-holdem'
