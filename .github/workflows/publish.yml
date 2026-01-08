@@ -31,10 +31,6 @@ jobs:
       - name: Rename index.html to main.html
         run: |
           mv build/index.html build/main.html
-      - name: Prepare artifact
-        run: |
-          mkdir -p artifact/mental-texas-holdem
-          cp -r build/* artifact/mental-texas-holdem/
       - name: Push to github pages repo
         uses: cpina/github-action-push-to-another-repository@main
         env:
@@ -46,4 +42,4 @@ jobs:
           user-email: github-action@github.com
           user-name: github-action
           target-branch: main
-          target-directory: '/'
+          target-directory: '/mental-texas-holdem'
